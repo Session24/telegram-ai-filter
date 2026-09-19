@@ -10,41 +10,42 @@ Personal AI-powered Telegram post filter. Analyzes posts from your Telegram chan
 - Classifies posts by category, content type, and importance
 - Sends useful posts to your Telegram bot with feedback buttons
 - Organizes posts into folders (system and custom)
-- Learns from your feedback over time
+- Records your feedback (useful / not useful) — automatic learning from feedback is planned but not yet implemented
 
 ## Architecture
 
 ```
 telegram-ai-filter/
-├── src/telegram_ai_filter/
-│   ├── ai/                 # AI provider abstraction
-│   │   ├── provider.py     # Abstract base class
-│   │   ├── openai_compatible.py  # OpenAI-compatible implementation
-│   │   └── schemas.py      # PostAnalysis dataclass
-│   ├── config/             # Configuration
-│   │   ├── settings.py     # .env loading
-│   │   └── prompts.py      # AI prompt templates
-│   ├── database/           # SQLAlchemy models + repositories
-│   │   ├── models.py       # ORM models
-│   │   ├── engine.py       # Async engine setup
-│   │   └── repositories/   # Data access layer
-│   ├── telegram/           # Telegram integration
-│   │   ├── channel_reader.py  # Telethon channel reader
-│   │   └── bot.py          # python-telegram-bot UI
-│   ├── services/           # Business logic
-│   │   ├── user_service.py
-│   │   ├── analysis_service.py
-│   │   ├── folder_service.py
-│   │   └── stats_service.py
-│   └── app.py              # Main application
-├── tests/                  # Test suite
-├── data/                   # SQLite database (gitignored)
-├── logs/                   # Application logs (gitignored)
-├── .env.example            # Configuration template
-├── pyproject.toml          # Project metadata
-├── requirements.txt        # Dependencies
-├── Dockerfile              # Docker support
-└── docker-compose.yml      # Docker Compose config
+├── src/
+│   └── telegram_ai_filter/
+│       ├── ai/                          # AI provider abstraction
+│       │   ├── provider.py              # Abstract base class
+│       │   ├── openai_compatible.py     # OpenAI-compatible implementation
+│       │   └── schemas.py              # PostAnalysis dataclass
+│       ├── config/                      # Configuration
+│       │   ├── settings.py             # .env loading
+│       │   └── prompts.py             # AI prompt templates
+│       ├── database/                    # SQLAlchemy models + repositories
+│       │   ├── models.py               # ORM models
+│       │   ├── engine.py               # Async engine setup
+│       │   └── repositories/           # Data access layer
+│       ├── telegram/                    # Telegram integration
+│       │   ├── channel_reader.py       # Telethon channel reader
+│       │   └── bot.py                  # python-telegram-bot UI
+│       ├── services/                    # Business logic
+│       │   ├── user_service.py
+│       │   ├── analysis_service.py
+│       │   ├── folder_service.py
+│       │   └── stats_service.py
+│       └── app.py                      # Main application entry point
+├── tests/                              # Test suite
+├── data/                               # SQLite database (gitignored)
+├── logs/                               # Application logs (gitignored)
+├── .env.example                        # Configuration template
+├── pyproject.toml                      # Project metadata
+├── requirements.txt                    # Dependencies
+├── Dockerfile                          # Docker support
+└── docker-compose.yml                  # Docker Compose config
 ```
 
 ## Requirements
@@ -58,7 +59,7 @@ telegram-ai-filter/
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/telegram-ai-filter.git
+git clone https://github.com/Session24/telegram-ai-filter.git
 cd telegram-ai-filter
 
 # Create virtual environment
@@ -114,11 +115,18 @@ AI_MODEL=gpt-4o-mini
 python -m telegram_ai_filter
 ```
 
-On first run:
-1. The bot will ask you to authorize your Telegram account (Telethon session)
-2. Open the Telegram bot and send /start
-3. Configure your interests in /settings
-4. Add channels as sources in /sources
+### First Run
+
+**Step 1 — Telethon user account authorization**
+
+On the very first launch the application will ask you to authorize your personal Telegram account via Telethon. Follow the prompts in the terminal: enter your phone number and the confirmation code you receive in Telegram. After that a `.session` file will be created and subsequent starts will not require re-authorization.
+
+**Step 2 — Telegram bot setup**
+
+Once Telethon is authorized, the bot starts polling. Open your Telegram bot in the Telegram app and send `/start` to create your user profile. Then:
+
+1. Configure your interests in `/settings`
+2. Add channels as sources with `/addsource @channel`
 
 ## Telegram Bot Commands
 
@@ -190,11 +198,11 @@ The AI returns structured JSON for each post:
 
 ## Security
 
-- Never commit `.env` files
-- Never commit Telegram session files (`*.session`)
-- API keys are sent only to your configured AI provider
-- All data stays on your machine (except what you send to AI)
-- SQLite database is local
+- Never commit `.env` files or Telegram session files (`*.session`)
+- The application and its SQLite database run and remain entirely on your local machine
+- Telegram integration uses Telegram's own infrastructure (MTProto via Telethon, Bot API via python-telegram-bot)
+- Post content is sent to the AI provider you configured **only for analysis** — it is not stored by this application outside your local database
+- API keys are never logged or committed
 
 ## Testing
 
@@ -217,20 +225,19 @@ The test suite covers:
 ## Project Structure
 
 - **AI Layer** - Provider abstraction for OpenAI-compatible APIs
-- **Database** - SQLAlchemy async with SQLite (upgradeable to PostgreSQL)
+- **Database** - SQLAlchemy async with SQLite
 - **Telegram** - Dual library: Telethon (user client) + python-telegram-bot (bot UI)
 - **Services** - Business logic isolated from I/O
 - **Config** - Environment-based configuration with validation
 
 ## Current Limitations
 
-- **SQLite only** - Uses SQLite for storage. PostgreSQL support is planned but not yet implemented.
-- **Self-hosted** - You must provide your own Telegram credentials and AI API key.
-- **Single-user mode** - Runs with a single `TARGET_CHAT_ID`. Multi-user data isolation exists in the schema but the app orchestrator uses one target chat.
-- **No Daily Digest** - The `digest_enabled` setting exists but the daily digest feature is not yet implemented.
-- **No Learned Preferences** - Automatic learning from feedback is not yet implemented. The system records feedback but does not adapt filtering automatically.
-- **No PostgreSQL** - Database backend is SQLite only. PostgreSQL migration is on the roadmap.
-- **Channel resolution** - When adding sources, channel IDs are generated deterministically. For production use, resolving channel IDs via Telethon API is recommended.
+- **SQLite only** — the database backend is SQLite. PostgreSQL support is planned but not yet implemented.
+- **Self-hosted** — you must provide your own Telegram credentials and AI API key.
+- **Single-user mode** — runs with a single `TARGET_CHAT_ID`. Multi-user data isolation exists in the schema but the app orchestrator uses one target chat.
+- **No Daily Digest** — the `digest_enabled` setting exists but the daily digest feature is not yet implemented.
+- **No Learned Preferences** — the system records your feedback but does not yet adapt filtering automatically.
+- **Deterministic channel IDs** — when adding sources via `/addsource`, channel IDs are generated from a hash of the username rather than resolved through the Telegram API. This works for the MVP but may cause collisions if two different channels produce the same hash. Resolving real channel IDs via Telethon is on the roadmap.
 
 ## Roadmap
 
@@ -238,6 +245,7 @@ The test suite covers:
 - [x] Source management via bot commands
 - [x] Feedback persistence and counting
 - [x] User data isolation (schema level)
+- [ ] Resolve real channel IDs via Telethon API (replace deterministic hash)
 - [ ] Daily digest feature
 - [ ] PostgreSQL support
 - [ ] Automatic learned preferences from feedback
