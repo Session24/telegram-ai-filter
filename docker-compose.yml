@@ -1,0 +1,12 @@
+services:
+  telegram-ai-filter:
+    build: .
+    container_name: telegram-ai-filter
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    # Uncomment if you need the Telegram session file to persist
+    # The .session file is created in data/ on first run
